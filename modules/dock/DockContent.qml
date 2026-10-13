@@ -138,10 +138,6 @@ Item {
         id: dockMouseArea
         hoverEnabled: true
 
-        HoverHandler {
-            id: dockHoverHandler
-            acceptedDevices: PointerDevice.Mouse
-        }
 
         // Size
         width: root.isVertical ? (root.reveal ? root.dockSize + root.edgeSideMargin + root.frameOffset : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset) : dockContent.implicitWidth
@@ -479,12 +475,11 @@ Item {
 
                     DockAppButton {
                         required property var modelData
+                        required property int index
                         appToplevel: modelData
+                        dockIndex: index
                         dragLayer: dockContainer
-                        dockPointerItem: dockMouseArea
-                        dockPointerX: dockHoverHandler.point.position.x
-                        dockPointerY: dockHoverHandler.point.position.y
-                        dockPointerActive: dockHoverHandler.hovered
+
                         Layout.alignment: Qt.AlignVCenter
                         dockPosition: "bottom"
                     }
@@ -622,12 +617,11 @@ Item {
 
                     DockAppButton {
                         required property var modelData
+                        required property int index
                         appToplevel: modelData
+                        dockIndex: index
                         dragLayer: dockContainer
-                        dockPointerItem: dockMouseArea
-                        dockPointerX: dockHoverHandler.point.position.x
-                        dockPointerY: dockHoverHandler.point.position.y
-                        dockPointerActive: dockHoverHandler.hovered
+
                         Layout.alignment: Qt.AlignHCenter
                         dockPosition: root.position
                     }
