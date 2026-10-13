@@ -52,6 +52,7 @@ StyledRect {
 
     HoverHandler {
         id: dockHoverHandler
+        acceptedDevices: PointerDevice.Mouse
     }
 
     Flickable {
@@ -82,6 +83,7 @@ StyledRect {
                     IntegratedDockAppButton {
                         required property var modelData
                         appToplevel: modelData
+                        dragLayer: root.isVertical ? contentContainerVertical : contentContainerHorizontal
                         dockPointerItem: root
                         dockPointerX: root.dockPointerX
                         dockPointerY: root.dockPointerY
@@ -113,6 +115,7 @@ StyledRect {
                     IntegratedDockAppButton {
                         required property var modelData
                         appToplevel: modelData
+                        dragLayer: root.isVertical ? contentContainerVertical : contentContainerHorizontal
                         dockPointerItem: root
                         dockPointerX: root.dockPointerX
                         dockPointerY: root.dockPointerY
