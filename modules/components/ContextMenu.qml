@@ -77,6 +77,13 @@ PanelWindow {
             menuWidth: contextWindow.menuWidth
             itemHeight: contextWindow.itemHeight
 
+            backgroundColor: contextWindow.menuType === "dock" ? Colors.surfaceContainer : Colors.background
+            borderColor: contextWindow.menuType === "dock" ? Colors.outlineVariant : Colors.surfaceBright
+            borderWidth: contextWindow.menuType === "dock" ? 1 : 2
+            menuRadius: contextWindow.menuType === "dock" ? Math.max(Config.roundness, 10) : Config.roundness
+            defaultHighlightColor: contextWindow.menuType === "dock" ? Styling.srItem("focus") : Styling.srItem("overprimary")
+            defaultTextColor: contextWindow.menuType === "dock" ? Colors.overBackground : Colors.overPrimary
+
             function cleanMenuText(text) {
                 if (!text || text === "") return "";
                 
