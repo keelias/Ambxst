@@ -273,8 +273,8 @@ Button {
     }
 
     enabled: !isSeparator
-    implicitWidth: isSeparator ? (isVertical ? iconSize * 0.6 : 2) : iconSize * magnificationFactor + 8 + magnificationSpread
-    implicitHeight: isSeparator ? (isVertical ? 2 : iconSize * 0.6) : iconSize * magnificationFactor + 8 + magnificationSpread
+    implicitWidth: isSeparator ? (isVertical ? iconSize * 0.6 : 2) : iconSize + 8 + magnificationSpread
+    implicitHeight: isSeparator ? (isVertical ? 2 : iconSize * 0.6) : iconSize + 8 + magnificationSpread
 
     Behavior on implicitWidth {
         enabled: Config.animDuration > 0
