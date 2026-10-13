@@ -25,9 +25,6 @@ StyledRect {
     readonly property int iconSize: 18
     readonly property int itemSpacing: 2
 
-    readonly property real dockPointerX: dockHoverHandler.point.position.x
-    readonly property real dockPointerY: dockHoverHandler.point.position.y
-    readonly property bool dockPointerActive: dockHoverHandler.hovered
 
     visible: (Config.dock?.enabled ?? false) && isIntegrated
 
@@ -49,11 +46,6 @@ StyledRect {
     
     Layout.maximumWidth: isVertical ? 36 : -1
     Layout.maximumHeight: isVertical ? -1 : 36
-
-    HoverHandler {
-        id: dockHoverHandler
-        acceptedDevices: PointerDevice.Mouse
-    }
 
     Flickable {
         id: flickable
@@ -82,12 +74,10 @@ StyledRect {
 
                     IntegratedDockAppButton {
                         required property var modelData
+                        required property int index
                         appToplevel: modelData
+                        dockIndex: index
                         dragLayer: root.isVertical ? contentContainerVertical : contentContainerHorizontal
-                        dockPointerItem: root
-                        dockPointerX: root.dockPointerX
-                        dockPointerY: root.dockPointerY
-                        dockPointerActive: root.dockPointerActive
                         iconSize: root.iconSize
                         Layout.alignment: Qt.AlignVCenter
                         orientation: root.orientation
@@ -114,12 +104,10 @@ StyledRect {
 
                     IntegratedDockAppButton {
                         required property var modelData
+                        required property int index
                         appToplevel: modelData
+                        dockIndex: index
                         dragLayer: root.isVertical ? contentContainerVertical : contentContainerHorizontal
-                        dockPointerItem: root
-                        dockPointerX: root.dockPointerX
-                        dockPointerY: root.dockPointerY
-                        dockPointerActive: root.dockPointerActive
                         iconSize: root.iconSize
                         Layout.alignment: Qt.AlignHCenter
                         orientation: root.orientation
