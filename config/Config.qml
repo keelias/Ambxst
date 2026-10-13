@@ -1103,6 +1103,7 @@ Singleton {
             property int iconSize: 40
             property bool magnificationEnabled: false
             property real magnificationScale: 1.6
+            property real magnificationSpacing: 0.2
             property int spacing: 4
             property int margin: 8
             property int hoverRegionHeight: 4
