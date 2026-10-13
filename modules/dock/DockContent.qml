@@ -193,6 +193,26 @@ Item {
         Item {
             id: dockContainer
 
+            // Track the full dock surface, so magnification remains fluid through
+            // the gaps that open up as neighbouring icons grow.
+            HoverHandler {
+                id: dockMagnificationHover
+                acceptedDevices: PointerDevice.Mouse
+                onPointChanged: TaskbarApps.setDockPointer(
+                    dockContainer, point.position.x, point.position.y, root.isVertical)
+                onHoveredChanged: {
+                    if (hovered) {
+                        TaskbarApps.setDockPointer(
+                            dockContainer, point.position.x, point.position.y, root.isVertical);
+                    } else {
+                        Qt.callLater(() => {
+                            if (!dockMagnificationHover.hovered)
+                                TaskbarApps.clearDockPointer(dockContainer);
+                        });
+                    }
+                }
+            }
+
             // Corner size for default theme
             readonly property int cornerSize: root.isDefault && Config.roundness > 0 ? Config.roundness + 4 : 0
 
