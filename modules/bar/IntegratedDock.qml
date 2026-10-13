@@ -25,6 +25,11 @@ StyledRect {
     readonly property int iconSize: 18
     readonly property int itemSpacing: 2
 
+    readonly property string magnificationEdge: {
+        const edge = Config.bar?.position ?? "top";
+        return ["top", "bottom", "left", "right"].includes(edge) ? edge : "top";
+    }
+
 
     visible: (Config.dock?.enabled ?? false) && isIntegrated
 
@@ -77,6 +82,7 @@ StyledRect {
                         required property int index
                         appToplevel: modelData
                         dockIndex: index
+                        dockEdge: root.magnificationEdge
                         dragLayer: root.isVertical ? contentContainerVertical : contentContainerHorizontal
                         iconSize: root.iconSize
                         Layout.alignment: Qt.AlignVCenter
@@ -107,6 +113,7 @@ StyledRect {
                         required property int index
                         appToplevel: modelData
                         dockIndex: index
+                        dockEdge: root.magnificationEdge
                         dragLayer: root.isVertical ? contentContainerVertical : contentContainerHorizontal
                         iconSize: root.iconSize
                         Layout.alignment: Qt.AlignHCenter
