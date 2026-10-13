@@ -22,6 +22,22 @@ Button {
 
     property int dockIndex: -1
 
+    onHoveredChanged: {
+        if (hovered && (Config.dock?.magnificationEnabled ?? false) &&
+                !root.isSeparator && root.dockIndex >= 0 && root.dragLayer) {
+            // Use the existing button-hover state as the source of truth. The
+            // outline already follows this state, so it stays in sync with scaling.
+            TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, 0);
+            console.log("[Ambxst dock] magnification hover", root.appToplevel?.appId,
+                        "enabled:", Config.dock?.magnificationEnabled,
+                        "index:", root.dockIndex,
+                        "computed scale:", root.magnificationFactor);
+        } else {
+            TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
+        }
+    }
+
+
     readonly property real magnificationFactor: {
         if (!(Config.dock?.magnificationEnabled ?? false) || root.isSeparator ||
                 root.dockIndex < 0 || !root.dragLayer ||
@@ -36,44 +52,6 @@ Button {
         return 1 + (maxScale - 1) * influence;
     }
 
-    function updateMagnificationHover() {
-        if (!magnificationHover.hovered || !(Config.dock?.magnificationEnabled ?? false) ||
-                root.dockIndex < 0 || !root.dragLayer)
-            return;
-
-        const extent = root.isVertical ? root.height : root.width;
-        const position = root.isVertical
-                ? magnificationHover.point.position.y
-                : magnificationHover.point.position.x;
-        const offset = position / Math.max(extent, 1) - 0.5;
-        TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, offset);
-
-        if (root.magnificationFactor <= 1.001)
-            console.log("[Ambxst dock] hover tracked but scale inactive", root.appToplevel?.appId,
-                        "enabled:", Config.dock?.magnificationEnabled,
-                        "group:", root.dragLayer !== null, "index:", root.dockIndex);
-    }
-
-    HoverHandler {
-        id: magnificationHover
-        acceptedDevices: PointerDevice.Mouse
-        onPointChanged: root.updateMagnificationHover()
-        onHoveredChanged: {
-            if (hovered) {
-                root.updateMagnificationHover();
-                Qt.callLater(() => {
-                    console.log("[Ambxst dock] magnification hover", root.appToplevel?.appId,
-                                "enabled:", Config.dock?.magnificationEnabled,
-                                "index:", root.dockIndex,
-                                "group match:", TaskbarApps.dockHoveredGroup === root.dragLayer,
-                                "computed scale:", root.magnificationFactor,
-                                "hover offset:", TaskbarApps.dockHoverOffset);
-                });
-            } else {
-                TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
-            }
-        }
-    }
 
     readonly property bool isVertical: orientation === "vertical"
     readonly property bool isSeparator: appToplevel?.appId === "SEPARATOR"
@@ -129,7 +107,7 @@ Button {
         Rectangle {
             anchors.fill: parent
             radius: Styling.radius(-3)
-            color: root.appIsActive ? Styling.srItem("overprimary") : (root.hovered || root.pressed) ? Qt.rgba(Styling.srItem("overprimary").r, Styling.srItem("overprimary").g, Styling.srItem("overprimary").b, 0.15) : "transparent"
+            color: root.appIsActive ? Styling.srItem("overprimary") : (root.pressed || (root.hovered && !(Config.dock?.magnificationEnabled ?? false))) ? Qt.rgba(Styling.srItem("overprimary").r, Styling.srItem("overprimary").g, Styling.srItem("overprimary").b, 0.15) : "transparent"
             opacity: root.pressed ? 1 : (root.appIsActive ? 0.3 : 0.7)
 
             Behavior on color {
