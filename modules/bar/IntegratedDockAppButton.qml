@@ -98,6 +98,9 @@ Button {
     }
 
 
+    // Extra layout space gives enlarged icons room to spread their neighbours.
+    readonly property real magnificationSpread: root.iconSize * Math.max(0, root.magnificationFactor - 1) * 0.2
+
     readonly property bool isVertical: orientation === "vertical"
     readonly property bool isSeparator: appToplevel?.appId === "SEPARATOR"
     readonly property var desktopEntry: (isSeparator || !appToplevel) ? null : DesktopEntries.heuristicLookup(appToplevel.appId)
@@ -264,8 +267,8 @@ Button {
     }
 
     enabled: !isSeparator
-    implicitWidth: isSeparator ? (isVertical ? iconSize : 2) : iconSize * magnificationFactor + 8
-    implicitHeight: isSeparator ? (isVertical ? 2 : iconSize) : iconSize * magnificationFactor + 8
+    implicitWidth: isSeparator ? (isVertical ? iconSize : 2) : iconSize * magnificationFactor + 8 + magnificationSpread
+    implicitHeight: isSeparator ? (isVertical ? 2 : iconSize) : iconSize * magnificationFactor + 8 + magnificationSpread
 
     Behavior on implicitWidth {
         enabled: Config.animDuration > 0
