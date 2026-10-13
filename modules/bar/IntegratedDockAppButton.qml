@@ -36,6 +36,23 @@ Button {
         TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, offset);
     }
 
+    // Use the Button's own hover state as a reliable baseline. HoverHandler
+    // refines the pointer offset when available, but cannot be the only trigger.
+    onHoveredChanged: {
+        if (hovered && (Config.dock?.magnificationEnabled ?? false) &&
+                !root.isSeparator && root.dockIndex >= 0 && root.dragLayer) {
+            if (magnificationHover.hovered)
+                root.updateDockMagnificationHover();
+            else
+                TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, 0);
+        } else {
+            Qt.callLater(() => {
+                if (!root.hovered && !magnificationHover.hovered)
+                    TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
+            });
+        }
+    }
+
     HoverHandler {
         id: magnificationHover
         acceptedDevices: PointerDevice.Mouse
@@ -47,7 +64,7 @@ Button {
                 // Let an adjacent icon claim hover first; don't briefly collapse
                 // the magnification wave while crossing the gap between buttons.
                 Qt.callLater(() => {
-                    if (!magnificationHover.hovered)
+                    if (!magnificationHover.hovered && !root.hovered)
                         TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
                 });
             }
