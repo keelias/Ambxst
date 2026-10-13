@@ -47,6 +47,10 @@ Menu {
     property color borderColor: Colors.surfaceBright
     property int borderWidth: 2
     property int menuRadius: Config.roundness
+    // Use the shell's configured popup material for menus that should match
+    // the active theme (including gradients, opacity, border and shadow).
+    property bool useStyledBackground: false
+    property string styledBackgroundVariant: "popup"
 
     // Propiedades de highlight por defecto
     property color defaultHighlightColor: Styling.srItem("overprimary")
@@ -89,9 +93,20 @@ Menu {
     background: Item {
         implicitWidth: root.menuWidth
 
-        // Fondo principal
+        // Theme-aware popup material for menus that opt into it.
+        StyledRect {
+            anchors.fill: parent
+            visible: root.useStyledBackground
+            variant: root.styledBackgroundVariant
+            radius: root.menuRadius
+            enableShadow: root.useStyledBackground
+            enableBorder: root.useStyledBackground
+        }
+
+        // Flat fallback retained for existing non-dock menus.
         Rectangle {
             anchors.fill: parent
+            visible: !root.useStyledBackground
             color: root.backgroundColor
             radius: root.menuRadius
             border.width: root.borderWidth
