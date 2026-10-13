@@ -50,8 +50,9 @@ Button {
     Drag.active: dockDragHandler.active
     Drag.source: root
     Drag.supportedActions: Qt.MoveAction
-    Drag.hotSpot.x: root.width / 2
-    Drag.hotSpot.y: root.height / 2
+    // Follow the pointer without moving the layout-managed dock button itself.
+    Drag.hotSpot.x: dockDragHandler.centroid.position.x
+    Drag.hotSpot.y: dockDragHandler.centroid.position.y
 
     enabled: !isSeparator
     implicitWidth: isSeparator ? (isVertical ? iconSize : 2) : iconSize + 8
