@@ -61,30 +61,44 @@ StyledRect {
         interactive: true
         boundsBehavior: Flickable.StopAtBounds
 
+        // Track hover on the viewport rather than the expanding content. This
+        // keeps pointer coordinates stable and reliably resets on viewport exit.
+        HoverHandler {
+            id: dockPointerHover
+            acceptedDevices: PointerDevice.Mouse
+            property var activePointerGroup: null
+
+            function updateDockPointer() {
+                const group = root.isVertical
+                        ? contentContainerVertical : contentContainerHorizontal;
+                const pointer = flickable.mapToItem(
+                    group, point.position.x, point.position.y);
+                activePointerGroup = group;
+                TaskbarApps.setDockPointer(
+                    group, pointer.x, pointer.y, root.isVertical);
+            }
+
+            onPointChanged: updateDockPointer()
+            onHoveredChanged: {
+                if (hovered) {
+                    updateDockPointer();
+                } else {
+                    Qt.callLater(() => {
+                        if (!dockPointerHover.hovered && dockPointerHover.activePointerGroup) {
+                            TaskbarApps.clearDockPointer(dockPointerHover.activePointerGroup);
+                            dockPointerHover.activePointerGroup = null;
+                        }
+                    });
+                }
+            }
+        }
+
         // Horizontal layout container
         Item {
             id: contentContainerHorizontal
             visible: !root.isVertical
             height: parent.height
             width: Math.max(flickable.width, dockLayout.implicitWidth + 8)
-
-            HoverHandler {
-                id: horizontalMagnificationHover
-                acceptedDevices: PointerDevice.Mouse
-                onPointChanged: TaskbarApps.setDockPointer(
-                    contentContainerHorizontal, point.position.x, point.position.y, false)
-                onHoveredChanged: {
-                    if (hovered) {
-                        TaskbarApps.setDockPointer(
-                            contentContainerHorizontal, point.position.x, point.position.y, false);
-                    } else {
-                        Qt.callLater(() => {
-                            if (!horizontalMagnificationHover.hovered)
-                                TaskbarApps.clearDockPointer(contentContainerHorizontal);
-                        });
-                    }
-                }
-            }
 
             RowLayout {
                 id: dockLayout
@@ -116,24 +130,6 @@ StyledRect {
             visible: root.isVertical
             width: parent.width
             height: Math.max(flickable.height, dockLayoutVertical.implicitHeight + 8)
-
-            HoverHandler {
-                id: verticalMagnificationHover
-                acceptedDevices: PointerDevice.Mouse
-                onPointChanged: TaskbarApps.setDockPointer(
-                    contentContainerVertical, point.position.x, point.position.y, true)
-                onHoveredChanged: {
-                    if (hovered) {
-                        TaskbarApps.setDockPointer(
-                            contentContainerVertical, point.position.x, point.position.y, true);
-                    } else {
-                        Qt.callLater(() => {
-                            if (!verticalMagnificationHover.hovered)
-                                TaskbarApps.clearDockPointer(contentContainerVertical);
-                        });
-                    }
-                }
-            }
 
             ColumnLayout {
                 id: dockLayoutVertical
