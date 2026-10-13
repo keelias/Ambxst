@@ -89,7 +89,6 @@ Button {
     property Item dragLayer: null
     property point lastDragPoint: Qt.point(0, 0)
     property var dragPreview: null
-    readonly property bool isDraggingPinnedApp: dockDragHandler.active
 
     Component.onCompleted: TaskbarApps.registerDockButton(root)
     Component.onDestruction: {
@@ -210,13 +209,6 @@ Button {
                 anchors.fill: previewIcon
             }
 
-            Behavior on opacity {
-                enabled: Config.animDuration > 0
-                NumberAnimation {
-                    duration: 90
-                    easing.type: Easing.OutCubic
-                }
-            }
         }
     }
 
