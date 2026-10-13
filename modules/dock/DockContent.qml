@@ -138,6 +138,31 @@ Item {
         id: dockMouseArea
         hoverEnabled: true
 
+        // Track the stable hover area rather than the container whose geometry
+        // changes as icons spread. Coordinates are converted back to dock space.
+        HoverHandler {
+            id: dockMagnificationHover
+            acceptedDevices: PointerDevice.Mouse
+
+            function updateDockPointer() {
+                const pointer = dockMouseArea.mapToItem(
+                    dockContainer, point.position.x, point.position.y);
+                TaskbarApps.setDockPointer(
+                    dockContainer, pointer.x, pointer.y, root.isVertical);
+            }
+
+            onPointChanged: updateDockPointer()
+            onHoveredChanged: {
+                if (hovered) {
+                    updateDockPointer();
+                } else {
+                    Qt.callLater(() => {
+                        if (!dockMagnificationHover.hovered)
+                            TaskbarApps.clearDockPointer(dockContainer);
+                    });
+                }
+            }
+        }
 
         // Size
         width: root.isVertical ? (root.reveal ? root.dockSize + root.edgeSideMargin + root.frameOffset : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset) : dockContent.implicitWidth
@@ -192,26 +217,6 @@ Item {
         // Dock container
         Item {
             id: dockContainer
-
-            // Track the full dock surface, so magnification remains fluid through
-            // the gaps that open up as neighbouring icons grow.
-            HoverHandler {
-                id: dockMagnificationHover
-                acceptedDevices: PointerDevice.Mouse
-                onPointChanged: TaskbarApps.setDockPointer(
-                    dockContainer, point.position.x, point.position.y, root.isVertical)
-                onHoveredChanged: {
-                    if (hovered) {
-                        TaskbarApps.setDockPointer(
-                            dockContainer, point.position.x, point.position.y, root.isVertical);
-                    } else {
-                        Qt.callLater(() => {
-                            if (!dockMagnificationHover.hovered)
-                                TaskbarApps.clearDockPointer(dockContainer);
-                        });
-                    }
-                }
-            }
 
             // Corner size for default theme
             readonly property int cornerSize: root.isDefault && Config.roundness > 0 ? Config.roundness + 4 : 0
