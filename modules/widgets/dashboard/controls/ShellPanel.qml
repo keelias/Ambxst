@@ -1478,6 +1478,22 @@ Item {
                         }
 
                         NumberInputRow {
+                            label: "Magnification spacing"
+                            visible: Config.dock.magnificationEnabled ?? false
+                            value: Math.round((Config.dock.magnificationSpacing ?? 0.2) * 100)
+                            minValue: 0
+                            maxValue: 100
+                            suffix: "%"
+                            onValueEdited: newValue => {
+                                const spacing = newValue / 100;
+                                if (Math.abs(spacing - (Config.dock.magnificationSpacing ?? 0.2)) > 0.001) {
+                                    GlobalStates.markShellChanged();
+                                    Config.dock.magnificationSpacing = spacing;
+                                }
+                            }
+                        }
+
+                        NumberInputRow {
                             label: I18n.t("shell.dock.spacing")
                             visible: (Config.dock.theme ?? "default") !== "integrated"
                             value: Config.dock.spacing ?? 10
