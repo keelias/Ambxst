@@ -139,8 +139,8 @@ Item {
         hoverEnabled: true
 
         // Size
-        width: root.isVertical ? (root.reveal ? root.dockSize + root.totalMargin + root.shadowSpace : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset) : dockContent.implicitWidth + 20
-        height: root.isVertical ? dockContent.implicitHeight + 20 : (root.reveal ? root.dockSize + root.totalMargin + root.shadowSpace : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset)
+        width: root.isVertical ? (root.reveal ? root.dockSize + root.edgeSideMargin + root.frameOffset : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset) : dockContent.implicitWidth
+        height: root.isVertical ? dockContent.implicitHeight : (root.reveal ? root.dockSize + root.edgeSideMargin + root.frameOffset : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset)
 
         // Position using x/y
         x: {
@@ -475,6 +475,10 @@ Item {
                     DockAppButton {
                         required property var modelData
                         appToplevel: modelData
+                        dockPointerItem: dockMouseArea
+                        dockPointerX: dockMouseArea.mouseX
+                        dockPointerY: dockMouseArea.mouseY
+                        dockPointerActive: dockMouseArea.containsMouse
                         Layout.alignment: Qt.AlignVCenter
                         dockPosition: "bottom"
                     }
@@ -613,6 +617,10 @@ Item {
                     DockAppButton {
                         required property var modelData
                         appToplevel: modelData
+                        dockPointerItem: dockMouseArea
+                        dockPointerX: dockMouseArea.mouseX
+                        dockPointerY: dockMouseArea.mouseY
+                        dockPointerActive: dockMouseArea.containsMouse
                         Layout.alignment: Qt.AlignHCenter
                         dockPosition: root.position
                     }
