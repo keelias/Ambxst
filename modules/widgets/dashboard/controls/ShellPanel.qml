@@ -1450,6 +1450,33 @@ Item {
                             }
                         }
 
+                        ToggleRow {
+                            label: "Icon hover magnification"
+                            checked: Config.dock.magnificationEnabled ?? false
+                            onToggled: value => {
+                                if (value !== Config.dock.magnificationEnabled) {
+                                    GlobalStates.markShellChanged();
+                                    Config.dock.magnificationEnabled = value;
+                                }
+                            }
+                        }
+
+                        NumberInputRow {
+                            label: "Magnification amount"
+                            visible: Config.dock.magnificationEnabled ?? false
+                            value: Math.round((Config.dock.magnificationScale ?? 1.6) * 100)
+                            minValue: 110
+                            maxValue: 240
+                            suffix: "%"
+                            onValueEdited: newValue => {
+                                const scale = newValue / 100;
+                                if (Math.abs(scale - (Config.dock.magnificationScale ?? 1.6)) > 0.001) {
+                                    GlobalStates.markShellChanged();
+                                    Config.dock.magnificationScale = scale;
+                                }
+                            }
+                        }
+
                         NumberInputRow {
                             label: I18n.t("shell.dock.spacing")
                             visible: (Config.dock.theme ?? "default") !== "integrated"
