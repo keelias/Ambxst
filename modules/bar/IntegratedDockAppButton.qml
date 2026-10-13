@@ -20,21 +20,55 @@ Button {
     property real iconSize: 18
     property string orientation: "horizontal"
 
-    property Item dockPointerItem: null
-    property real dockPointerX: -10000
-    property real dockPointerY: -10000
-    property bool dockPointerActive: false
-    readonly property point centerInDock: dockPointerItem ? root.mapToItem(dockPointerItem, root.width / 2, root.height / 2) : Qt.point(-10000, -10000)
-    readonly property real pointerDistance: isVertical ? Math.abs(centerInDock.y - dockPointerY) : Math.abs(centerInDock.x - dockPointerX)
+    property int dockIndex: -1
+
     readonly property real magnificationFactor: {
-        if (!dockPointerActive || !(Config.dock?.magnificationEnabled ?? false) || isSeparator)
+        if (!(Config.dock?.magnificationEnabled ?? false) || root.isSeparator ||
+                root.dockIndex < 0 || !root.dragLayer ||
+                TaskbarApps.dockHoveredGroup !== root.dragLayer ||
+                TaskbarApps.dockHoveredIndex < 0)
             return 1.0;
-        const maxScale = Config.dock?.magnificationScale ?? 1.6;
-        const radius = Math.max(iconSize * 2.2, 48);
-        const influence = Math.max(0, 1 - pointerDistance / radius);
-        return 1 + (Math.max(1.1, Math.min(maxScale, 2.4)) - 1) * influence;
+
+        const maxScale = Math.max(1.1, Math.min(Config.dock?.magnificationScale ?? 1.6, 2.4));
+        const pointerIndex = TaskbarApps.dockHoveredIndex + TaskbarApps.dockHoverOffset;
+        const distance = Math.abs(root.dockIndex - pointerIndex);
+        const influence = Math.max(0, 1 - distance / 2.25);
+        return 1 + (maxScale - 1) * influence;
     }
 
+    function updateMagnificationHover() {
+        if (!magnificationHover.hovered || !(Config.dock?.magnificationEnabled ?? false) ||
+                root.dockIndex < 0 || !root.dragLayer)
+            return;
+
+        const extent = root.isVertical ? root.height : root.width;
+        const position = root.isVertical
+                ? magnificationHover.point.position.y
+                : magnificationHover.point.position.x;
+        const offset = position / Math.max(extent, 1) - 0.5;
+        TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, offset);
+
+        if (root.magnificationFactor <= 1.001)
+            console.log("[Ambxst dock] hover tracked but scale inactive", root.appToplevel?.appId,
+                        "enabled:", Config.dock?.magnificationEnabled,
+                        "group:", root.dragLayer !== null, "index:", root.dockIndex);
+    }
+
+    HoverHandler {
+        id: magnificationHover
+        acceptedDevices: PointerDevice.Mouse
+        onPointChanged: root.updateMagnificationHover()
+        onHoveredChanged: {
+            if (hovered) {
+                root.updateMagnificationHover();
+                console.log("[Ambxst dock] magnification hover", root.appToplevel?.appId,
+                            "enabled:", Config.dock?.magnificationEnabled,
+                            "index:", root.dockIndex);
+            } else {
+                TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
+            }
+        }
+    }
 
     readonly property bool isVertical: orientation === "vertical"
     readonly property bool isSeparator: appToplevel?.appId === "SEPARATOR"
