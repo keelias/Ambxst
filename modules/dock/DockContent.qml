@@ -138,6 +138,11 @@ Item {
         id: dockMouseArea
         hoverEnabled: true
 
+        HoverHandler {
+            id: dockHoverHandler
+            acceptedDevices: PointerDevice.Mouse
+        }
+
         // Size
         width: root.isVertical ? (root.reveal ? root.dockSize + root.edgeSideMargin + root.frameOffset : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset) : dockContent.implicitWidth
         height: root.isVertical ? dockContent.implicitHeight : (root.reveal ? root.dockSize + root.edgeSideMargin + root.frameOffset : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset)
@@ -475,10 +480,11 @@ Item {
                     DockAppButton {
                         required property var modelData
                         appToplevel: modelData
+                        dragLayer: dockContainer
                         dockPointerItem: dockMouseArea
-                        dockPointerX: dockMouseArea.mouseX
-                        dockPointerY: dockMouseArea.mouseY
-                        dockPointerActive: dockMouseArea.containsMouse
+                        dockPointerX: dockHoverHandler.point.position.x
+                        dockPointerY: dockHoverHandler.point.position.y
+                        dockPointerActive: dockHoverHandler.hovered
                         Layout.alignment: Qt.AlignVCenter
                         dockPosition: "bottom"
                     }
@@ -617,10 +623,11 @@ Item {
                     DockAppButton {
                         required property var modelData
                         appToplevel: modelData
+                        dragLayer: dockContainer
                         dockPointerItem: dockMouseArea
-                        dockPointerX: dockMouseArea.mouseX
-                        dockPointerY: dockMouseArea.mouseY
-                        dockPointerActive: dockMouseArea.containsMouse
+                        dockPointerX: dockHoverHandler.point.position.x
+                        dockPointerY: dockHoverHandler.point.position.y
+                        dockPointerActive: dockHoverHandler.hovered
                         Layout.alignment: Qt.AlignHCenter
                         dockPosition: root.position
                     }
