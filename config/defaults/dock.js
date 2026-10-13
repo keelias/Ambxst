@@ -8,6 +8,7 @@ var data = {
     "iconSize": 24,
     "magnificationEnabled": false,
     "magnificationScale": 1.6,
+    "magnificationSpacing": 0.2,
     "spacing": 4,
     "margin": 4,
     "hoverRegionHeight": 16,
