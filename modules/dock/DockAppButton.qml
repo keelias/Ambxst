@@ -101,7 +101,9 @@ Button {
 
 
     // Extra layout space gives enlarged icons room to spread their neighbours.
-    readonly property real magnificationSpread: root.iconSize * Math.max(0, root.magnificationFactor - 1) * 0.2
+    readonly property real magnificationSpread: root.iconSize
+            * Math.max(0, root.magnificationFactor - 1)
+            * Math.max(0, Math.min(Config.dock?.magnificationSpacing ?? 0.2, 1.0))
 
     // Position helpers
     readonly property bool isBottom: dockPosition === "bottom"
