@@ -19,24 +19,40 @@ Button {
     property int lastFocused: -1
     property real iconSize: 18
     property string orientation: "horizontal"
+    property string dockEdge: "top"
 
     property int dockIndex: -1
 
-    onHoveredChanged: {
-        if (hovered && (Config.dock?.magnificationEnabled ?? false) &&
-                !root.isSeparator && root.dockIndex >= 0 && root.dragLayer) {
-            // Use the existing button-hover state as the source of truth. The
-            // outline already follows this state, so it stays in sync with scaling.
-            TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, 0);
-            console.log("[Ambxst dock] magnification hover", root.appToplevel?.appId,
-                        "enabled:", Config.dock?.magnificationEnabled,
-                        "index:", root.dockIndex,
-                        "computed scale:", root.magnificationFactor);
-        } else {
-            TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
-        }
+    function updateDockMagnificationHover() {
+        if (!magnificationHover.hovered || !(Config.dock?.magnificationEnabled ?? false) ||
+                root.isSeparator || root.dockIndex < 0 || !root.dragLayer)
+            return;
+
+        const extent = root.isVertical ? root.height : root.width;
+        const position = root.isVertical
+                ? magnificationHover.point.position.y
+                : magnificationHover.point.position.x;
+        const offset = position / Math.max(extent, 1) - 0.5;
+        TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, offset);
     }
 
+    HoverHandler {
+        id: magnificationHover
+        acceptedDevices: PointerDevice.Mouse
+        onPointChanged: root.updateDockMagnificationHover()
+        onHoveredChanged: {
+            if (hovered) {
+                root.updateDockMagnificationHover();
+            } else {
+                // Let an adjacent icon claim hover first; don't briefly collapse
+                // the magnification wave while crossing the gap between buttons.
+                Qt.callLater(() => {
+                    if (!magnificationHover.hovered)
+                        TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
+                });
+            }
+        }
+    }
 
     readonly property real magnificationFactor: {
         if (!(Config.dock?.magnificationEnabled ?? false) || root.isSeparator ||
@@ -66,9 +82,60 @@ Button {
 
     property Item dragLayer: null
     property point lastDragPoint: Qt.point(0, 0)
+    property var dragPreview: null
+    readonly property bool isDraggingPinnedApp: dockDragHandler.active
 
     Component.onCompleted: TaskbarApps.registerDockButton(root)
-    Component.onDestruction: TaskbarApps.unregisterDockButton(root)
+    Component.onDestruction: {
+        TaskbarApps.unregisterDockButton(root);
+        if (root.dragPreview)
+            root.dragPreview.destroy();
+    }
+
+    function updateDragPreview() {
+        if (!root.dragPreview || !root.dragLayer)
+            return;
+
+        const pointer = root.mapToItem(root.dragLayer,
+                                       dockDragHandler.centroid.position.x,
+                                       dockDragHandler.centroid.position.y);
+        root.dragPreview.x = pointer.x - root.dragPreview.width / 2;
+        root.dragPreview.y = pointer.y - root.dragPreview.height / 2;
+    }
+
+    function destroyDragPreview() {
+        if (root.dragPreview) {
+            root.dragPreview.destroy();
+            root.dragPreview = null;
+        }
+    }
+
+    Behavior on x {
+        enabled: Config.animDuration > 0 && !dockDragHandler.active
+        NumberAnimation {
+            duration: Math.max(140, Math.min(Config.animDuration, 240))
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    Behavior on y {
+        enabled: Config.animDuration > 0 && !dockDragHandler.active
+        NumberAnimation {
+            duration: Math.max(140, Math.min(Config.animDuration, 240))
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    opacity: dockDragHandler.active ? 0.28 : 1
+    z: dockDragHandler.active ? 10 : 0
+
+    Behavior on opacity {
+        enabled: Config.animDuration > 0
+        NumberAnimation {
+            duration: 100
+            easing.type: Easing.OutCubic
+        }
+    }
 
     DragHandler {
         id: dockDragHandler
@@ -78,17 +145,71 @@ Button {
         grabPermissions: PointerHandler.CanTakeOverFromAnything
 
         onCentroidChanged: {
-            if (active)
+            if (active) {
                 root.lastDragPoint = centroid.position;
+                root.updateDragPreview();
+            }
         }
 
         onActiveChanged: {
             if (active) {
                 root.lastDragPoint = centroid.position;
                 TaskbarApps.beginPinnedDrag(root.appToplevel?.appId ?? "");
-            } else if (TaskbarApps.pinnedDragAppId === (root.appToplevel?.appId ?? "")) {
-                const p = root.mapToItem(root.dragLayer, root.lastDragPoint.x, root.lastDragPoint.y);
-                TaskbarApps.finishPinnedDrag(root.dragLayer, p.x, p.y, root.isVertical);
+                if (root.dragLayer)
+                    root.dragPreview = dragPreviewComponent.createObject(root.dragLayer);
+                root.updateDragPreview();
+            } else {
+                if (TaskbarApps.pinnedDragAppId === (root.appToplevel?.appId ?? "")) {
+                    const p = root.mapToItem(root.dragLayer, root.lastDragPoint.x, root.lastDragPoint.y);
+                    TaskbarApps.finishPinnedDrag(root.dragLayer, p.x, p.y, root.isVertical);
+                }
+                root.destroyDragPreview();
+            }
+        }
+    }
+
+    Component {
+        id: dragPreviewComponent
+
+        Item {
+            id: preview
+            width: root.iconSize + 14
+            height: root.iconSize + 14
+            z: 10000
+            opacity: 0.96
+            scale: 1.04
+
+            StyledRect {
+                anchors.fill: parent
+                variant: "popup"
+                radius: Styling.radius(5)
+                enableShadow: true
+                enableBorder: true
+            }
+
+            Image {
+                id: previewIcon
+                anchors.centerIn: parent
+                width: root.iconSize
+                height: root.iconSize
+                source: "image://icon/" + (root.desktopEntry?.icon ?? AppSearch.guessIcon(root.appToplevel?.appId ?? ""))
+                sourceSize.width: root.iconSize * 2
+                sourceSize.height: root.iconSize * 2
+                fillMode: Image.PreserveAspectFit
+                mipmap: true
+            }
+
+            Tinted {
+                sourceItem: previewIcon
+                anchors.fill: previewIcon
+            }
+
+            Behavior on opacity {
+                enabled: Config.animDuration > 0
+                NumberAnimation {
+                    duration: 90
+                    easing.type: Easing.OutCubic
+                }
             }
         }
     }
@@ -153,11 +274,22 @@ Button {
                     height: root.iconSize
                     scale: root.magnificationFactor
                     transformOrigin: Item.Center
+
+                    readonly property real edgeLift: root.iconSize * Math.max(0, scale - 1) / 2
+
+                    transform: Translate {
+                        x: root.dockEdge === "left" ? appIconContainer.edgeLift
+                           : root.dockEdge === "right" ? -appIconContainer.edgeLift : 0
+                        y: root.dockEdge === "bottom" ? -appIconContainer.edgeLift
+                           : root.dockEdge === "top" ? appIconContainer.edgeLift : 0
+                    }
+
                     Behavior on scale {
                         enabled: Config.animDuration > 0
-                        NumberAnimation {
-                            duration: Math.max(80, Config.animDuration / 3)
-                            easing.type: Easing.OutCubic
+                        SmoothedAnimation {
+                            velocity: 3.5
+                            duration: 180
+                            reversingMode: SmoothedAnimation.Immediate
                         }
                     }
 
@@ -263,6 +395,7 @@ Button {
         const appId = root.appToplevel?.appId ?? "";
         const items = [{
             text: (root.appToplevel?.pinned ?? false) ? "Unpin from Dock" : "Pin to Dock",
+            icon: (root.appToplevel?.pinned ?? false) ? Icons.unpin : Icons.pin,
             onTriggered: function() {
                 TaskbarApps.togglePin(appId);
             }
@@ -271,6 +404,7 @@ Button {
         if (root.desktopEntry) {
             items.push({
                 text: "Launch New Instance",
+                icon: Icons.launch,
                 onTriggered: function() {
                     AppSearch.launchApp(root.desktopEntry);
                 }
@@ -281,6 +415,7 @@ Button {
             items.push({ isSeparator: true });
             items.push({
                 text: root.instanceCount === 1 ? "Close Window" : "Close All Windows",
+                icon: Icons.stop,
                 onTriggered: function() {
                     const windows = (root.appToplevel?.toplevels ?? []).slice();
                     windows.forEach(window => {
