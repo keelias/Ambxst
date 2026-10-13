@@ -81,7 +81,11 @@ PanelWindow {
             borderColor: contextWindow.menuType === "dock" ? Colors.outlineVariant : Colors.surfaceBright
             borderWidth: contextWindow.menuType === "dock" ? 1 : 2
             menuRadius: contextWindow.menuType === "dock" ? Math.max(Config.roundness, 10) : Config.roundness
-            defaultHighlightColor: contextWindow.menuType === "dock" ? Styling.srItem("focus") : Styling.srItem("overprimary")
+            useStyledBackground: contextWindow.menuType === "dock"
+            styledBackgroundVariant: "popup"
+            defaultHighlightColor: contextWindow.menuType === "dock"
+                    ? Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.28)
+                    : Styling.srItem("overprimary")
             defaultTextColor: contextWindow.menuType === "dock" ? Colors.overBackground : Colors.overPrimary
 
             function cleanMenuText(text) {
