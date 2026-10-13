@@ -6,6 +6,8 @@ var data = {
     "position": "bottom",
     "height": 48,
     "iconSize": 24,
+    "magnificationEnabled": false,
+    "magnificationScale": 1.6,
     "spacing": 4,
     "margin": 4,
     "hoverRegionHeight": 16,
