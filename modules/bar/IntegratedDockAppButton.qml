@@ -61,9 +61,14 @@ Button {
         onHoveredChanged: {
             if (hovered) {
                 root.updateMagnificationHover();
-                console.log("[Ambxst dock] magnification hover", root.appToplevel?.appId,
-                            "enabled:", Config.dock?.magnificationEnabled,
-                            "index:", root.dockIndex);
+                Qt.callLater(() => {
+                    console.log("[Ambxst dock] magnification hover", root.appToplevel?.appId,
+                                "enabled:", Config.dock?.magnificationEnabled,
+                                "index:", root.dockIndex,
+                                "group match:", TaskbarApps.dockHoveredGroup === root.dragLayer,
+                                "computed scale:", root.magnificationFactor,
+                                "hover offset:", TaskbarApps.dockHoverOffset);
+                });
             } else {
                 TaskbarApps.clearDockHover(root.dragLayer, root.dockIndex);
             }
