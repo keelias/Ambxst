@@ -1101,6 +1101,8 @@ Singleton {
             property string position: "bottom"
             property int height: 56
             property int iconSize: 40
+            property bool magnificationEnabled: false
+            property real magnificationScale: 1.6
             property int spacing: 4
             property int margin: 8
             property int hoverRegionHeight: 4
