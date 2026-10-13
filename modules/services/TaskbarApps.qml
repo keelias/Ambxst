@@ -55,21 +55,59 @@ Singleton {
     property var dockHoveredGroup: null
     property int dockHoveredIndex: -1
     property real dockHoverOffset: 0
+    property real dockHoverPosition: 0
+    property bool dockHoverVertical: false
+    property bool dockPointerActive: false
 
-    function setDockHover(group, index, offset) {
+    // Track the pointer along the dock axis, including the gaps between apps.
+    function setDockPointer(group, x, y, vertical) {
+        if (!group)
+            return;
+        dockHoveredGroup = group;
+        dockHoveredIndex = -1;
+        dockHoverOffset = 0;
+        dockHoverPosition = vertical ? y : x;
+        dockHoverVertical = vertical === true;
+        dockPointerActive = true;
+    }
+
+    // Kept for the button-level hover fallback; position is in dragLayer coordinates.
+    function setDockHover(group, index, offset, position, vertical) {
         if (!group || index < 0)
             return;
         dockHoveredGroup = group;
         dockHoveredIndex = index;
         dockHoverOffset = Math.max(-0.5, Math.min(0.5, offset));
+        if (position !== undefined) {
+            dockHoverPosition = position;
+            dockHoverVertical = vertical === true;
+            dockPointerActive = true;
+        }
     }
 
     function clearDockHover(group, index) {
+        // A dock-level HoverHandler owns the full pointer lifetime, so moving
+        // through the spaces between buttons must not collapse the magnification.
+        if (dockPointerActive && dockHoveredGroup === group)
+            return;
         if (dockHoveredGroup === group && dockHoveredIndex === index) {
             dockHoveredGroup = null;
             dockHoveredIndex = -1;
             dockHoverOffset = 0;
+            dockHoverPosition = 0;
+            dockHoverVertical = false;
         }
+    }
+
+    function clearDockPointer(group) {
+        if (dockHoveredGroup !== group)
+            return;
+        dockHoveredGroup = null;
+        dockHoveredIndex = -1;
+        dockHoverOffset = 0;
+        dockHoverPosition = 0;
+        dockHoverVertical = false;
+        dockPointerActive = false;
     }
 
     // Visible dock delegates register here. Resolve drops against their actual
