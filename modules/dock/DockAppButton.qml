@@ -35,18 +35,26 @@ Button {
                 ? magnificationHover.point.position.y
                 : magnificationHover.point.position.x;
         const offset = position / Math.max(extent, 1) - 0.5;
-        TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, offset);
+        const pointer = root.mapToItem(root.dragLayer,
+                                       magnificationHover.point.position.x,
+                                       magnificationHover.point.position.y);
+        TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, offset,
+                                 root.isVertical ? pointer.y : pointer.x,
+                                 root.isVertical);
     }
+
 
     // Use the Button's own hover state as a reliable baseline. HoverHandler
     // refines the pointer offset when available, but cannot be the only trigger.
     onHoveredChanged: {
         if (hovered && (Config.dock?.magnificationEnabled ?? false) &&
                 !root.isSeparator && root.dockIndex >= 0 && root.dragLayer) {
-            if (magnificationHover.hovered)
+            if (magnificationHover.hovered) {
                 root.updateDockMagnificationHover();
-            else
-                TaskbarApps.setDockHover(root.dragLayer, root.dockIndex, 0);
+            } else {
+                const center = root.mapToItem(root.dragLayer, root.width / 2, root.height / 2);
+                TaskbarApps.setDockPointer(root.dragLayer, center.x, center.y, root.isVertical);
+            }
         } else {
             Qt.callLater(() => {
                 if (!root.hovered && !magnificationHover.hovered)
@@ -77,13 +85,17 @@ Button {
         if (!(Config.dock?.magnificationEnabled ?? false) || root.isSeparator ||
                 root.dockIndex < 0 || !root.dragLayer ||
                 TaskbarApps.dockHoveredGroup !== root.dragLayer ||
-                TaskbarApps.dockHoveredIndex < 0)
+                !TaskbarApps.dockPointerActive ||
+                TaskbarApps.dockHoverVertical !== root.isVertical)
             return 1.0;
 
         const maxScale = Math.max(1.1, Math.min(Config.dock?.magnificationScale ?? 1.6, 2.4));
-        const pointerIndex = TaskbarApps.dockHoveredIndex + TaskbarApps.dockHoverOffset;
-        const distance = Math.abs(root.dockIndex - pointerIndex);
-        const influence = Math.max(0, 1 - distance / 2.25);
+        const influenceRadius = Math.max(root.iconSize * 3.25, root.iconSize + 16);
+        const distance = Math.abs(root.dockCenterAlongAxis - TaskbarApps.dockHoverPosition);
+        const normalizedDistance = Math.min(distance / influenceRadius, 1);
+        const influence = distance < influenceRadius
+                ? (1 + Math.cos(Math.PI * normalizedDistance)) / 2
+                : 0;
         return 1 + (maxScale - 1) * influence;
     }
 
@@ -106,8 +118,36 @@ Button {
     property Item dragLayer: null
     property point lastDragPoint: Qt.point(0, 0)
     property var dragPreview: null
+    property real dockCenterAlongAxis: 0
 
-    Component.onCompleted: TaskbarApps.registerDockButton(root)
+    function updateDockCenterAlongAxis() {
+        if (!root.dragLayer) {
+            root.dockCenterAlongAxis = 0;
+            return;
+        }
+        const center = root.mapToItem(root.dragLayer, root.width / 2, root.height / 2);
+        root.dockCenterAlongAxis = root.isVertical ? center.y : center.x;
+    }
+
+    onXChanged: root.updateDockCenterAlongAxis()
+    onYChanged: root.updateDockCenterAlongAxis()
+    onWidthChanged: root.updateDockCenterAlongAxis()
+    onHeightChanged: root.updateDockCenterAlongAxis()
+    onDragLayerChanged: root.updateDockCenterAlongAxis()
+    onParentChanged: root.updateDockCenterAlongAxis()
+
+    Connections {
+        target: root.parent
+        function onXChanged() { root.updateDockCenterAlongAxis(); }
+        function onYChanged() { root.updateDockCenterAlongAxis(); }
+        function onWidthChanged() { root.updateDockCenterAlongAxis(); }
+        function onHeightChanged() { root.updateDockCenterAlongAxis(); }
+    }
+
+    Component.onCompleted: {
+        TaskbarApps.registerDockButton(root);
+        root.updateDockCenterAlongAxis();
+    }
     Component.onDestruction: {
         TaskbarApps.unregisterDockButton(root);
         if (root.dragPreview)
@@ -230,8 +270,23 @@ Button {
     }
 
     enabled: !isSeparator
-    implicitWidth: isSeparator ? (isVertical ? iconSize * 0.6 : 2) : iconSize + 8
-    implicitHeight: isSeparator ? (isVertical ? 2 : iconSize * 0.6) : iconSize + 8
+    implicitWidth: isSeparator ? (isVertical ? iconSize * 0.6 : 2) : iconSize * magnificationFactor + 8
+    implicitHeight: isSeparator ? (isVertical ? 2 : iconSize * 0.6) : iconSize * magnificationFactor + 8
+
+    Behavior on implicitWidth {
+        enabled: Config.animDuration > 0
+        NumberAnimation {
+            duration: 110
+            easing.type: Easing.OutCubic
+        }
+    }
+    Behavior on implicitHeight {
+        enabled: Config.animDuration > 0
+        NumberAnimation {
+            duration: 110
+            easing.type: Easing.OutCubic
+        }
+    }
 
     padding: 0
     topPadding: 0
