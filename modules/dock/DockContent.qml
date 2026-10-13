@@ -137,31 +137,41 @@ Item {
     MouseArea {
         id: dockMouseArea
         hoverEnabled: true
+        property real lastLoggedMagnificationPosition: -10000
 
-        // Track the stable hover area rather than the container whose geometry
-        // changes as icons spread. Coordinates are converted back to dock space.
-        HoverHandler {
-            id: dockMagnificationHover
-            acceptedDevices: PointerDevice.Mouse
-
-            function updateDockPointer() {
-                const pointer = dockMouseArea.mapToItem(
-                    dockContainer, point.position.x, point.position.y);
-                TaskbarApps.setDockPointer(
-                    dockContainer, pointer.x, pointer.y, root.isVertical);
+        function updateMagnificationPointer(pointerX, pointerY) {
+            if (!(Config.dock?.magnificationEnabled ?? false)) {
+                TaskbarApps.clearDockPointer(dockContainer);
+                return;
             }
 
-            onPointChanged: updateDockPointer()
-            onHoveredChanged: {
-                if (hovered) {
-                    updateDockPointer();
-                } else {
-                    Qt.callLater(() => {
-                        if (!dockMagnificationHover.hovered)
-                            TaskbarApps.clearDockPointer(dockContainer);
-                    });
-                }
+            const pointer = dockMouseArea.mapToItem(dockContainer, pointerX, pointerY);
+            const axisPosition = root.isVertical ? pointer.y : pointer.x;
+            TaskbarApps.setDockPointer(dockContainer, pointer.x, pointer.y, root.isVertical);
+
+            // Log only after a meaningful movement, to avoid drowning normal shell logs.
+            if (Math.abs(axisPosition - lastLoggedMagnificationPosition) >= 32) {
+                console.log("[Ambxst magnification] pointer", root.isVertical ? "vertical" : "horizontal",
+                            "position:", Math.round(axisPosition),
+                            "active:", TaskbarApps.dockPointerActive);
+                lastLoggedMagnificationPosition = axisPosition;
             }
+        }
+
+        onEntered: {
+            console.log("[Ambxst magnification] entered dock hover area; enabled:",
+                        Config.dock?.magnificationEnabled ?? false);
+            updateMagnificationPointer(mouseX, mouseY);
+        }
+
+        onPositionChanged: mouse => {
+            updateMagnificationPointer(mouse.x, mouse.y);
+        }
+
+        onExited: {
+            console.log("[Ambxst magnification] exited dock hover area; clearing pointer state");
+            TaskbarApps.clearDockPointer(dockContainer);
+            lastLoggedMagnificationPosition = -10000;
         }
 
         // Size
