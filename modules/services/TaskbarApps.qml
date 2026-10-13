@@ -52,6 +52,26 @@ Singleton {
         Config.savePinnedApps();
     }
 
+    property var dockHoveredGroup: null
+    property int dockHoveredIndex: -1
+    property real dockHoverOffset: 0
+
+    function setDockHover(group, index, offset) {
+        if (!group || index < 0)
+            return;
+        dockHoveredGroup = group;
+        dockHoveredIndex = index;
+        dockHoverOffset = Math.max(-0.5, Math.min(0.5, offset));
+    }
+
+    function clearDockHover(group, index) {
+        if (dockHoveredGroup === group && dockHoveredIndex === index) {
+            dockHoveredGroup = null;
+            dockHoveredIndex = -1;
+            dockHoverOffset = 0;
+        }
+    }
+
     // Visible dock delegates register here. Resolve drops against their actual
     // geometry so reordering works even when a layout owns their positions.
     property var dockButtons: []
