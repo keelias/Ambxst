@@ -33,6 +33,25 @@ Singleton {
         Config.savePinnedApps();
     }
 
+    // Move a pinned app before or after another pinned app and persist the order.
+    function movePinned(appId, targetAppId, insertBefore) {
+        if (!appId || !targetAppId || appId.toLowerCase() === targetAppId.toLowerCase())
+            return;
+
+        const pinnedApps = (Config.pinnedApps?.apps ?? []).slice();
+        const sourceIndex = pinnedApps.findIndex(id => id.toLowerCase() === appId.toLowerCase());
+        const targetIndex = pinnedApps.findIndex(id => id.toLowerCase() === targetAppId.toLowerCase());
+        if (sourceIndex < 0 || targetIndex < 0)
+            return;
+
+        const movingApp = pinnedApps.splice(sourceIndex, 1)[0];
+        const adjustedTargetIndex = pinnedApps.findIndex(id => id.toLowerCase() === targetAppId.toLowerCase());
+        pinnedApps.splice(adjustedTargetIndex + (insertBefore ? 0 : 1), 0, movingApp);
+
+        Config.pinnedApps.apps = pinnedApps;
+        Config.savePinnedApps();
+    }
+
     // Get entry
     function getDesktopEntry(appId) {
         if (!appId) return null;
