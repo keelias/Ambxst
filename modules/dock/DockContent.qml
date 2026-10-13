@@ -481,7 +481,7 @@ Item {
                         dragLayer: dockContainer
 
                         Layout.alignment: Qt.AlignVCenter
-                        dockPosition: "bottom"
+                        dockPosition: root.position
                     }
                 }
 
