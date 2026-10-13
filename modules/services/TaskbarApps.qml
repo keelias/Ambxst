@@ -52,6 +52,58 @@ Singleton {
         Config.savePinnedApps();
     }
 
+    // Visible dock delegates register here. Resolve drops against their actual
+    // geometry so reordering works even when a layout owns their positions.
+    property var dockButtons: []
+    property string pinnedDragAppId: ""
+
+    function registerDockButton(button) {
+        if (!button)
+            return;
+        dockButtons = dockButtons.filter(item => item && item !== button).concat([button]);
+    }
+
+    function unregisterDockButton(button) {
+        dockButtons = dockButtons.filter(item => item && item !== button);
+    }
+
+    function beginPinnedDrag(appId) {
+        pinnedDragAppId = isPinned(appId) ? appId : "";
+    }
+
+    function finishPinnedDrag(dragLayer, pointerX, pointerY, vertical) {
+        const sourceId = pinnedDragAppId;
+        pinnedDragAppId = "";
+        if (!sourceId || !isPinned(sourceId) || !dragLayer)
+            return;
+
+        let target = null;
+        for (const button of dockButtons) {
+            if (!button || !button.appToplevel || button.dragLayer !== dragLayer ||
+                    !button.appToplevel.pinned ||
+                    button.appToplevel.appId.toLowerCase() === sourceId.toLowerCase())
+                continue;
+
+            const pos = button.mapToItem(dragLayer, 0, 0);
+            if (pointerX >= pos.x && pointerX <= pos.x + button.width &&
+                    pointerY >= pos.y && pointerY <= pos.y + button.height) {
+                target = button;
+                break;
+            }
+        }
+
+        // Dropping in the gaps between apps intentionally does nothing.
+        if (!target)
+            return;
+
+        const targetPos = target.mapToItem(dragLayer, 0, 0);
+        const targetId = target.appToplevel.appId;
+        const insertBefore = vertical
+                ? pointerY < targetPos.y + target.height / 2
+                : pointerX < targetPos.x + target.width / 2;
+        movePinned(sourceId, targetId, insertBefore);
+    }
+
     // Get entry
     function getDesktopEntry(appId) {
         if (!appId) return null;
