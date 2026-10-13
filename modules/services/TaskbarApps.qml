@@ -100,8 +100,15 @@ Singleton {
     }
 
     function clearDockPointer(group) {
-        if (dockHoveredGroup !== group)
+        if (dockHoveredGroup !== group) {
+            console.log("[Ambxst magnification] clear ignored: requested group is not active",
+                        "active:", dockHoveredGroup, "requested:", group);
             return;
+        }
+
+        console.log("[Ambxst magnification] clearing pointer state",
+                    "last position:", Math.round(dockHoverPosition),
+                    "vertical:", dockHoverVertical);
         dockHoveredGroup = null;
         dockHoveredIndex = -1;
         dockHoverOffset = 0;
