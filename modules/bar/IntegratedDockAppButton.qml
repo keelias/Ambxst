@@ -9,6 +9,7 @@ import Quickshell.Widgets
 import qs.modules.theme
 import qs.modules.services
 import qs.modules.components
+import qs.modules.globals
 import qs.config
 
 Button {
@@ -19,6 +20,22 @@ Button {
     property real iconSize: 18
     property string orientation: "horizontal"
 
+    property Item dockPointerItem: null
+    property real dockPointerX: -10000
+    property real dockPointerY: -10000
+    property bool dockPointerActive: false
+    readonly property point centerInDock: dockPointerItem ? root.mapToItem(dockPointerItem, root.width / 2, root.height / 2) : Qt.point(-10000, -10000)
+    readonly property real pointerDistance: isVertical ? Math.abs(centerInDock.y - dockPointerY) : Math.abs(centerInDock.x - dockPointerX)
+    readonly property real magnificationFactor: {
+        if (!dockPointerActive || !(Config.dock?.magnificationEnabled ?? false) || isSeparator)
+            return 1.0;
+        const maxScale = Config.dock?.magnificationScale ?? 1.6;
+        const radius = Math.max(iconSize * 2.2, 48);
+        const influence = Math.max(0, 1 - pointerDistance / radius);
+        return 1 + (Math.max(1.1, Math.min(maxScale, 2.4)) - 1) * influence;
+    }
+
+
     readonly property bool isVertical: orientation === "vertical"
     readonly property bool isSeparator: appToplevel?.appId === "SEPARATOR"
     readonly property var desktopEntry: (isSeparator || !appToplevel) ? null : DesktopEntries.heuristicLookup(appToplevel.appId)
@@ -28,6 +45,13 @@ Button {
     readonly property bool showIndicators: !isSeparator && (Config.dock?.showRunningIndicators ?? true) && appIsRunning
     readonly property int instanceCount: (isSeparator || !appToplevel) ? 0 : appToplevel.toplevelCount
     readonly property real indicatorDotSize: 4
+
+    Drag.keys: ["ambxst-pinned-dock-app"]
+    Drag.active: dockDragHandler.active
+    Drag.source: root
+    Drag.supportedActions: Qt.MoveAction
+    Drag.hotSpot.x: root.width / 2
+    Drag.hotSpot.y: root.height / 2
 
     enabled: !isSeparator
     implicitWidth: isSeparator ? (isVertical ? iconSize : 2) : iconSize + 8
@@ -79,6 +103,16 @@ Button {
             anchors.fill: parent
             sourceComponent: Item {
                 anchors.fill: parent
+                scale: root.magnificationFactor
+                transformOrigin: Item.Center
+                Behavior on scale {
+                    enabled: Config.animDuration > 0
+                    NumberAnimation {
+                        duration: Math.max(80, Config.animDuration / 3)
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
 
                 // App icon container
                 Item {
@@ -185,6 +219,41 @@ Button {
         appToplevel.toplevels[lastFocused].activate();
     }
 
+    function showAppContextMenu() {
+        const appId = root.appToplevel?.appId ?? "";
+        const items = [{
+            text: (root.appToplevel?.pinned ?? false) ? "Unpin from Dock" : "Pin to Dock",
+            onTriggered: function() {
+                TaskbarApps.togglePin(appId);
+            }
+        }];
+
+        if (root.desktopEntry) {
+            items.push({
+                text: "Launch New Instance",
+                onTriggered: function() {
+                    AppSearch.launchApp(root.desktopEntry);
+                }
+            });
+        }
+
+        if (root.appIsRunning) {
+            items.push({ isSeparator: true });
+            items.push({
+                text: root.instanceCount === 1 ? "Close Window" : "Close All Windows",
+                onTriggered: function() {
+                    const windows = (root.appToplevel?.toplevels ?? []).slice();
+                    windows.forEach(window => {
+                        if (window && typeof window.close === "function")
+                            window.close();
+                    });
+                }
+            });
+        }
+
+        Visibilities.contextMenu?.openCustomMenu(items, 190, 32, "dock");
+    }
+
     // Middle click: always launch new instance
     MouseArea {
         anchors.fill: parent
@@ -200,11 +269,34 @@ Button {
                     AppSearch.launchApp(root.desktopEntry);
                 }
             } else if (mouse.button === Qt.RightButton) {
-                // Toggle pin
-                TaskbarApps.togglePin(root.appToplevel?.appId ?? "");
+                root.showAppContextMenu();
             }
         }
     }
+
+    DragHandler {
+        id: dockDragHandler
+        target: null
+        enabled: !root.isSeparator && (root.appToplevel?.pinned ?? false)
+        acceptedButtons: Qt.LeftButton
+    }
+
+    DropArea {
+        anchors.fill: parent
+        enabled: !root.isSeparator && (root.appToplevel?.pinned ?? false)
+        keys: ["ambxst-pinned-dock-app"]
+
+        onDropped: drop => {
+            const sourceButton = drop.source;
+            if (!sourceButton || sourceButton === root || !(sourceButton.appToplevel?.pinned ?? false))
+                return;
+
+            const insertBefore = root.isVertical ? drop.y < height / 2 : drop.x < width / 2;
+            TaskbarApps.movePinned(sourceButton.appToplevel.appId, root.appToplevel.appId, insertBefore);
+            drop.acceptProposedAction();
+        }
+    }
+
 
     // Tooltip
     StyledToolTip {
