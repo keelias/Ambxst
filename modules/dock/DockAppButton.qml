@@ -52,13 +52,35 @@ Button {
     readonly property bool showIndicators: !isSeparator && (Config.dock?.showRunningIndicators ?? true) && appIsRunning
     readonly property int instanceCount: (isSeparator || !appToplevel) ? 0 : appToplevel.toplevelCount
 
-    Drag.keys: ["ambxst-pinned-dock-app"]
-    Drag.active: dockDragHandler.active
-    Drag.source: root
-    Drag.supportedActions: Qt.MoveAction
-    // Follow the pointer without moving the layout-managed dock button itself.
-    Drag.hotSpot.x: dockDragHandler.centroid.position.x
-    Drag.hotSpot.y: dockDragHandler.centroid.position.y
+
+    property Item dragLayer: null
+    property point lastDragPoint: Qt.point(0, 0)
+
+    Component.onCompleted: TaskbarApps.registerDockButton(root)
+    Component.onDestruction: TaskbarApps.unregisterDockButton(root)
+
+    DragHandler {
+        id: dockDragHandler
+        target: null
+        enabled: !root.isSeparator && (root.appToplevel?.pinned ?? false)
+        acceptedButtons: Qt.LeftButton
+        grabPermissions: PointerHandler.CanTakeOverFromAnything
+
+        onCentroidChanged: {
+            if (active)
+                root.lastDragPoint = centroid.position;
+        }
+
+        onActiveChanged: {
+            if (active) {
+                root.lastDragPoint = centroid.position;
+                TaskbarApps.beginPinnedDrag(root.appToplevel?.appId ?? "");
+            } else if (TaskbarApps.pinnedDragAppId === (root.appToplevel?.appId ?? "")) {
+                const p = root.mapToItem(root.dragLayer, root.lastDragPoint.x, root.lastDragPoint.y);
+                TaskbarApps.finishPinnedDrag(root.dragLayer, p.x, p.y, root.isVertical);
+            }
+        }
+    }
 
     enabled: !isSeparator
     implicitWidth: isSeparator ? (isVertical ? iconSize * 0.6 : 2) : iconSize + 8
@@ -107,15 +129,6 @@ Button {
             anchors.fill: parent
             sourceComponent: Item {
                 anchors.fill: parent
-                scale: root.magnificationFactor
-                transformOrigin: Item.Center
-                Behavior on scale {
-                    enabled: Config.animDuration > 0
-                    NumberAnimation {
-                        duration: Math.max(80, Config.animDuration / 3)
-                        easing.type: Easing.OutCubic
-                    }
-                }
 
 
                 // App icon
@@ -124,6 +137,15 @@ Button {
                     anchors.centerIn: parent
                     width: root.iconSize
                     height: root.iconSize
+                    scale: root.magnificationFactor
+                    transformOrigin: Item.Center
+                    Behavior on scale {
+                        enabled: Config.animDuration > 0
+                        NumberAnimation {
+                            duration: Math.max(80, Config.animDuration / 3)
+                            easing.type: Easing.OutCubic
+                        }
+                    }
 
                     readonly property string iconName: {
                         if (root.desktopEntry && root.desktopEntry.icon) {
@@ -278,29 +300,6 @@ Button {
             } else if (mouse.button === Qt.RightButton) {
                 root.showAppContextMenu();
             }
-        }
-    }
-
-    DragHandler {
-        id: dockDragHandler
-        target: null
-        enabled: !root.isSeparator && (root.appToplevel?.pinned ?? false)
-        acceptedButtons: Qt.LeftButton
-    }
-
-    DropArea {
-        anchors.fill: parent
-        enabled: !root.isSeparator && (root.appToplevel?.pinned ?? false)
-        keys: ["ambxst-pinned-dock-app"]
-
-        onDropped: drop => {
-            const sourceButton = drop.source;
-            if (!sourceButton || sourceButton === root || !(sourceButton.appToplevel?.pinned ?? false))
-                return;
-
-            const insertBefore = root.isVertical ? drop.y < height / 2 : drop.x < width / 2;
-            TaskbarApps.movePinned(sourceButton.appToplevel.appId, root.appToplevel.appId, insertBefore);
-            drop.acceptProposedAction();
         }
     }
 
