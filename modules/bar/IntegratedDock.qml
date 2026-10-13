@@ -67,26 +67,39 @@ StyledRect {
             id: dockPointerHover
             acceptedDevices: PointerDevice.Mouse
             property var activePointerGroup: null
+            property real lastLoggedMagnificationPosition: -10000
 
             function updateDockPointer() {
                 const group = root.isVertical
                         ? contentContainerVertical : contentContainerHorizontal;
                 const pointer = flickable.mapToItem(
                     group, point.position.x, point.position.y);
+                const axisPosition = root.isVertical ? pointer.y : pointer.x;
                 activePointerGroup = group;
                 TaskbarApps.setDockPointer(
                     group, pointer.x, pointer.y, root.isVertical);
+
+                if (Math.abs(axisPosition - lastLoggedMagnificationPosition) >= 32) {
+                    console.log("[Ambxst magnification] integrated pointer",
+                                root.isVertical ? "vertical" : "horizontal",
+                                "position:", Math.round(axisPosition));
+                    lastLoggedMagnificationPosition = axisPosition;
+                }
             }
 
             onPointChanged: updateDockPointer()
             onHoveredChanged: {
                 if (hovered) {
+                    console.log("[Ambxst magnification] entered integrated dock viewport",
+                                "orientation:", root.orientation);
                     updateDockPointer();
                 } else {
+                    console.log("[Ambxst magnification] exited integrated dock viewport");
                     Qt.callLater(() => {
                         if (!dockPointerHover.hovered && dockPointerHover.activePointerGroup) {
                             TaskbarApps.clearDockPointer(dockPointerHover.activePointerGroup);
                             dockPointerHover.activePointerGroup = null;
+                            lastLoggedMagnificationPosition = -10000;
                         }
                     });
                 }
