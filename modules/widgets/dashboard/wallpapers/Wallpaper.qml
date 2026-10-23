@@ -43,6 +43,7 @@ PanelWindow {
 
     property var activeVideo: null
     // The cache is only considered ready for the exact wallpaper that generated it.
+    property bool lockscreenInitialGenerationPending: true
     property string lockscreenFrameReadyFor: ""
     property string lockscreenFrameGeneratingPath: ""
     property string lockscreenFrameGeneratingKey: ""
@@ -329,9 +330,15 @@ PanelWindow {
             delayedThumbnailGen.start();
     }
 
-    onCurrentWallpaperChanged:
-    // Matugen se ejecuta manualmente en las funciones de cambio
-    {}
+    onCurrentWallpaperChanged: {
+        // Startup may finish loading the saved wallpaper after Component.onCompleted.
+        // Schedule its cache once the first real wallpaper becomes available.
+        if (lockscreenInitialGenerationPending && initialLoadCompleted && currentWallpaper) {
+            lockscreenInitialGenerationPending = false;
+            lockscreenFrameTimer.start();
+        }
+        // Matugen is run explicitly by the wallpaper-switching functions.
+    }
 
     function setWallpaper(path, targetScreen = null) {
         if (GlobalStates.wallpaperManager && GlobalStates.wallpaperManager !== wallpaper) {
@@ -526,6 +533,7 @@ PanelWindow {
         // Lockscreen frame generation deferred 5s after boot to reduce peak memory.
         Qt.callLater(function () {
             if (currentWallpaper) {
+                lockscreenInitialGenerationPending = false;
                 lockscreenFrameTimer.start();
             }
         });
