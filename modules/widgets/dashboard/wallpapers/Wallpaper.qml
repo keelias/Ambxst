@@ -148,7 +148,9 @@ PanelWindow {
 
     function getFileType(path) {
         var extension = path.toLowerCase().split('.').pop();
-        if (['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'bmp'].includes(extension)) {
+        if (extension === 'svg') {
+            return 'svg';
+        } else if (['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'bmp'].includes(extension)) {
             return 'image';
         } else if (['gif'].includes(extension)) {
             return 'gif';
@@ -179,7 +181,7 @@ PanelWindow {
         var fileType = getFileType(filePath);
 
         // Para el display (WallpapersTab), siempre usar thumbnails si están disponibles
-        if (fileType === 'video' || fileType === 'image' || fileType === 'gif') {
+        if (fileType === 'video' || fileType === 'image' || fileType === 'gif' || fileType === 'svg') {
             var thumbnailPath = getThumbnailPath(filePath);
             // Verificar si el thumbnail existe (esto es solo para debugging, QML manejará el fallback)
             return thumbnailPath;
@@ -193,7 +195,7 @@ PanelWindow {
         var fileType = getFileType(filePath);
 
         // Para generación de colores: solo videos usan thumbnails
-        if (fileType === 'video') {
+        if (fileType === 'video' || fileType === 'svg') {
             return getThumbnailPath(filePath);
         }
 
@@ -209,7 +211,7 @@ PanelWindow {
         var fileType = getFileType(filePath);
 
         // Para imágenes estáticas, usar el archivo original
-        if (fileType === 'image') {
+        if (fileType === 'image' || fileType === 'svg') {
             return filePath;
         }
 
@@ -279,7 +281,7 @@ PanelWindow {
         directoryWatcher.path = wallpaperDir;
 
         // Force update scan command
-        var cmd = ["find", "-L", wallpaperDir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", ")", "-print"];
+        var cmd = ["find", "-L", wallpaperDir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", "-o", "-iname", "*.svg", ")", "-print"];
         scanWallpapers.command = cmd;
         scanWallpapers.running = true;
 
@@ -592,7 +594,7 @@ PanelWindow {
                         directoryWatcher.reload();
 
                         // Perform initial wallpaper scan
-                        var cmd = ["find", "-L", dir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", ")", "-print"];
+                        var cmd = ["find", "-L", dir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", "-o", "-iname", "*.svg", ")", "-print"];
                         scanWallpapers.command = cmd;
                         scanWallpapers.running = true;
                         wallpaper.scanSubfolders();
@@ -866,7 +868,7 @@ PanelWindow {
     Process {
         id: scanWallpapers
         running: false
-        command: wallpaperDir ? ["find", "-L", wallpaperDir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", ")", "-print"] : []
+        command: wallpaperDir ? ["find", "-L", wallpaperDir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", "-o", "-iname", "*.svg", ")", "-print"] : []
 
         onRunningChanged: {
             if (running && wallpaperDir === "") {
@@ -945,7 +947,7 @@ PanelWindow {
     Process {
         id: scanFallback
         running: false
-        command: ["find", "-L", fallbackDir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", ")", "-print"]
+        command: ["find", "-L", fallbackDir, "-name", ".*", "-prune", "-o", "-type", "f", "(", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.png", "-o", "-name", "*.webp", "-o", "-name", "*.tif", "-o", "-name", "*.tiff", "-o", "-name", "*.gif", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", "-o", "-name", "*.mov", "-o", "-name", "*.avi", "-o", "-name", "*.mkv", "-o", "-iname", "*.svg", ")", "-print"]
 
         stdout: StdioCollector {
             onStreamFinished: {
