@@ -246,6 +246,9 @@ PanelWindow {
             return;
         }
 
+        // A direct generation request supersedes any deferred startup job.
+        lockscreenFrameTimer.stop();
+
         // If a wallpaper changes while a frame is being generated, retain only the
         // latest requested file and process it after the current job finishes.
         if (lockscreenWallpaperScript.running) {
