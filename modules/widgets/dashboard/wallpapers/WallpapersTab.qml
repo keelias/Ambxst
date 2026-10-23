@@ -1204,9 +1204,17 @@ FocusScope {
                 if (!parent.sourceFile || !GlobalStates.wallpaperManager)
                     return "";
 
-                // Usar SOLAMENTE thumbnail, nunca el original (muy pesado)
-                var thumbnailPath = GlobalStates.wallpaperManager.getThumbnailPath(parent.sourceFile);
-                var version = GlobalStates.wallpaperManager.thumbnailsVersion;
+                var manager = GlobalStates.wallpaperManager;
+                var version = manager.thumbnailsVersion;
+
+                // Keep SVG previews vector-rendered too; raster thumbnails are
+                // only used for bitmap/video formats and Matugen's palette input.
+                if (manager.getFileType(parent.sourceFile) === "svg")
+                    return "file://" + parent.sourceFile + "?v=" + version;
+
+                // Use cached thumbnails for non-SVG wallpapers to avoid loading
+                // large originals into every visible grid cell.
+                var thumbnailPath = manager.getThumbnailPath(parent.sourceFile);
                 return "file://" + thumbnailPath + "?v=" + version;
             }
             fillMode: Image.PreserveAspectCrop
