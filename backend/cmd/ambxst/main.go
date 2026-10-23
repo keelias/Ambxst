@@ -412,7 +412,7 @@ Commands:
     install <target>                 Install compositor config (hyprland, niri, mango)
     remove <target>                  Remove compositor config (hyprland, niri, mango)
     colorpicker                      Pick a screen color (interactive loupe)
-    lockwall <wallpaper> <data>      Extract lockscreen frame from video/GIF
+    lockwall <wallpaper> <data> [width height]  Prepare lockscreen background
     thumbs <config> <cache> [fall]   Generate wallpaper thumbnails (140x140)
     dthumbs <dir> <cache>            Generate desktop thumbnails (64x64)
     ipc call <method> <json>         Send a raw JSON-RPC call to the daemon
