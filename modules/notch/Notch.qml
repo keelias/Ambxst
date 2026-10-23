@@ -57,9 +57,17 @@ Item {
     implicitWidth: screenNotchOpen ? Math.max(stackContainer.width + totalCornerWidth, 290) : stackContainer.width + totalCornerWidth
     implicitHeight: Config.notchTheme === "default" ? defaultHeight : (Config.notchTheme === "island" ? islandHeight : defaultHeight)
 
+    // Animate only around open/close transitions. While idle the background
+    // must track content-driven size changes (notification arrival, hover
+    // expansion in DefaultView) 1:1: the inner view animates its own
+    // implicit size, and an outer animation here would chase it with the
+    // background lagging behind the content. alwaysRunToEnd keeps a
+    // mid-flight animation finishing after the Behavior is disabled, so a
+    // transition ending early can no longer freeze the size halfway.
     Behavior on implicitWidth {
         enabled: (screenNotchOpen || stackViewInternal.busy) && Config.animDuration > 0
         NumberAnimation {
+            alwaysRunToEnd: true
             duration: Config.animDuration
             easing.type: isExpanded ? Easing.OutBack : Easing.OutQuart
             easing.overshoot: isExpanded ? 1.2 : 1.0
@@ -69,6 +77,7 @@ Item {
     Behavior on implicitHeight {
         enabled: (screenNotchOpen || stackViewInternal.busy) && Config.animDuration > 0
         NumberAnimation {
+            alwaysRunToEnd: true
             duration: Config.animDuration
             easing.type: isExpanded ? Easing.OutBack : Easing.OutQuart
             easing.overshoot: isExpanded ? 1.2 : 1.0
@@ -305,7 +314,9 @@ Item {
             property real transitionBlur: 0.0
 
             // Aplicar MultiEffect con blur animable
-            layer.enabled: transitionBlur > 0.0
+            // Gate the offscreen pass on the perf toggle: when blur is
+            // disabled there is no visual effect, only FBO cost.
+            layer.enabled: transitionBlur > 0.0 && Config.performance.blurTransition
             layer.effect: MultiEffect {
                 blurEnabled: Config.performance.blurTransition
                 blurMax: 64
