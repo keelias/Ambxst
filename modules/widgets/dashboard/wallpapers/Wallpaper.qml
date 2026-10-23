@@ -330,13 +330,22 @@ PanelWindow {
             delayedThumbnailGen.start();
     }
 
-    onCurrentWallpaperChanged: {
-        // Startup may finish loading the saved wallpaper after Component.onCompleted.
-        // Schedule its cache once the first real wallpaper becomes available.
-        if (lockscreenInitialGenerationPending && initialLoadCompleted && currentWallpaper) {
+    onEffectiveWallpaperChanged: {
+        if (!effectiveWallpaper)
+            return;
+
+        // Give startup a little breathing room; later wallpaper changes regenerate
+        // their cache immediately, including per-screen wallpaper changes.
+        if (lockscreenInitialGenerationPending) {
             lockscreenInitialGenerationPending = false;
             lockscreenFrameTimer.start();
+        } else {
+            lockscreenFrameTimer.stop();
+            generateLockscreenFrame(effectiveWallpaper);
         }
+    }
+
+    onCurrentWallpaperChanged: {
         // Matugen is run explicitly by the wallpaper-switching functions.
     }
 
@@ -532,7 +541,7 @@ PanelWindow {
 
         // Lockscreen frame generation deferred 5s after boot to reduce peak memory.
         Qt.callLater(function () {
-            if (currentWallpaper) {
+            if (effectiveWallpaper && lockscreenInitialGenerationPending) {
                 lockscreenInitialGenerationPending = false;
                 lockscreenFrameTimer.start();
             }
@@ -551,8 +560,8 @@ PanelWindow {
         running: false
         repeat: false
         onTriggered: {
-            if (currentWallpaper) {
-                generateLockscreenFrame(currentWallpaper);
+            if (effectiveWallpaper || currentWallpaper) {
+                generateLockscreenFrame(effectiveWallpaper || currentWallpaper);
             }
         }
     }
