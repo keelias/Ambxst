@@ -17,7 +17,7 @@ var mediaVideoExts = map[string]bool{
 }
 
 var mediaImageExts = map[string]bool{
-	".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".tif": true, ".tiff": true, ".bmp": true,
+	".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".tif": true, ".tiff": true, ".bmp": true, ".svg": true,
 }
 
 func lookPathOr(name string) string {
@@ -110,11 +110,62 @@ func needsThumbnail(filePath, thumbPath string) bool {
 	return fi.ModTime().After(ti.ModTime())
 }
 
+// rasterizeSVG renders a vector source to a temporary high-resolution PNG
+// for the thumbnail and Matugen color-extraction pipeline. The wallpaper itself
+// remains SVG and is rendered by Qt at the display's native resolution.
+func rasterizeSVG(filePath string, size int) (string, error) {
+	renderSize := max(size*4, 64)
+	tmp, err := os.CreateTemp("", "ambxst-svg-*.png")
+	if err != nil {
+		return "", err
+	}
+	tmpPath := tmp.Name()
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", err
+	}
+
+	args := []string{
+		fmt.Sprintf("--width=%d", renderSize),
+		fmt.Sprintf("--height=%d", renderSize),
+		"--keep-aspect-ratio",
+		"--output=" + tmpPath,
+		filePath,
+	}
+	output, err := exec.Command("rsvg-convert", args...).CombinedOutput()
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		message := strings.TrimSpace(string(output))
+		if message == "" {
+			message = err.Error()
+		}
+		return "", fmt.Errorf("rsvg-convert failed: %s", message)
+	}
+	info, err := os.Stat(tmpPath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("stat rendered SVG: %w", err)
+	}
+	if info.Size() == 0 {
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("rsvg-convert produced an empty PNG")
+	}
+	return tmpPath, nil
+}
+
 func generateThumb(filePath, thumbPath string, size int) error {
 	if err := os.MkdirAll(filepath.Dir(thumbPath), 0o755); err != nil {
 		return err
 	}
 	ext := strings.ToLower(filepath.Ext(filePath))
+	if ext == ".svg" {
+		rasterizedPath, err := rasterizeSVG(filePath, size)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(rasterizedPath)
+		return generateThumbImage(rasterizedPath, thumbPath, size)
+	}
 	if mediaVideoExts[ext] {
 		scale := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d", size, size, size, size)
 		// Seek before the input for speed; retry from the first frame when
