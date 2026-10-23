@@ -36,8 +36,24 @@ WlSessionLockSurface {
 
         property string wallpaperPath: {
             var wp = root.screen ? GlobalStates.wallpaperForScreen(root.screen.name) : GlobalStates.wallpaperManager;
-            return wp ? wp.effectiveWallpaper : "";
+            if (!wp)
+                return "";
+
+            var sourcePath = wp.effectiveWallpaper || "";
+            if (!sourcePath)
+                return "";
+
+            var type = wp.getFileType(sourcePath);
+            if ((type === "image" || type === "svg")
+                    && wp.lockscreenFrameReadyFor === wp.getLockscreenFrameKey(sourcePath)) {
+                return wp.getLockscreenFramePath(sourcePath);
+            }
+
+            // Keep showing the original wallpaper until its cached image is ready.
+            return sourcePath;
         }
+
+        property bool usesPreBlurredWallpaper: wallpaperPath.indexOf("/.cache/ambxst/lockscreen/") !== -1
 
         source: wallpaperPath ? "file://" + wallpaperPath : ""
 
@@ -59,10 +75,12 @@ WlSessionLockSurface {
         }
 
         // Efecto de Blur y Zoom mediante capa
-        layer.enabled: true
+        // Static wallpapers use a JPEG whose blur was generated ahead of time.
+        // Live/animated wallpapers keep the existing animated Qt blur.
+        layer.enabled: !wallpaperBackground.usesPreBlurredWallpaper
         layer.effect: MultiEffect {
-            blurEnabled: true
-            blur: startAnim ? 1 : 0
+            blurEnabled: !wallpaperBackground.usesPreBlurredWallpaper
+            blur: (!wallpaperBackground.usesPreBlurredWallpaper && startAnim) ? 1 : 0
             blurMax: 64
         }
 
