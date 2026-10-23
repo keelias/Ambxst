@@ -749,7 +749,7 @@ PanelWindow {
         onTriggered: thumbnailGeneratorScript.running = true
     }
 
-    // Proceso para generar frame de lockscreen con el script de Python
+    // Process to prepare the cached lockscreen background
     Process {
         id: lockscreenWallpaperScript
         running: false
