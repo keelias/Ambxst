@@ -123,7 +123,7 @@ install_dependencies() {
       google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
       google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
       gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugin-libav
-      matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl
+      matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl librsvg2-tools
     )
 
     log_info "Installing dependencies..."
@@ -172,7 +172,7 @@ install_dependencies() {
       ttf-nerd-fonts-symbols
       matugen gpu-screen-recorder gradia
       qt6-multimedia-gstreamer gst-plugins-bad
-      quickshell ttf-phosphor-icons ttf-league-gothic adw-gtk-theme
+      librsvg quickshell ttf-phosphor-icons ttf-league-gothic adw-gtk-theme
     )
 
     log_info "Installing dependencies with $AUR_HELPER..."
