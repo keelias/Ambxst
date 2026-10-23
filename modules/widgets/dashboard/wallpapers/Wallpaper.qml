@@ -42,6 +42,10 @@ PanelWindow {
     property int thumbnailsVersion: 0
 
     property var activeVideo: null
+    // The cache is only considered ready for the exact wallpaper that generated it.
+    property string lockscreenFrameReadyFor: ""
+    property string lockscreenFrameGeneratingPath: ""
+    property string lockscreenFramePendingPath: ""
 
     // Blurs the wallpaper while niri's native overview is open. The overview
     // backdrop shows this surface (place-within-backdrop), so blurring it here
@@ -209,18 +213,20 @@ PanelWindow {
         }
 
         var fileType = getFileType(filePath);
+        var fileName = filePath.split('/').pop();
+        var cacheDir = Quickshell.env("HOME") + "/.cache/ambxst/lockscreen";
 
-        // Para imágenes estáticas, usar el archivo original
+        // Static wallpapers use a display-sized JPEG with the blur already baked in.
+        // Include the dimensions so differently shaped displays do not share the wrong crop.
         if (fileType === 'image' || fileType === 'svg') {
-            return filePath;
+            var width = Math.max(1, Math.round(wallpaper.width || 1920));
+            var height = Math.max(1, Math.round(wallpaper.height || 1080));
+            return cacheDir + "/" + fileName + "." + width + "x" + height + ".jpg";
         }
 
-        // Para videos y GIFs, usar el frame cacheado
+        // Keep the existing frame naming for animated wallpapers.
         if (fileType === 'video' || fileType === 'gif') {
-            var fileName = filePath.split('/').pop();
-            // QUICKSHELL-GIT: var cachePath = Quickshell.cacheDir + "/lockscreen/" + fileName + ".jpg";
-            var cachePath = Quickshell.env("HOME") + "/.cache/ambxst" + "/lockscreen/" + fileName + ".jpg";
-            return cachePath;
+            return cacheDir + "/" + fileName + ".jpg";
         }
 
         return filePath;
@@ -232,13 +238,34 @@ PanelWindow {
             return;
         }
 
-        console.log("Generating lockscreen frame for:", filePath);
+        // If a wallpaper changes while a frame is being generated, retain only the
+        // latest requested file and process it after the current job finishes.
+        if (lockscreenWallpaperScript.running) {
+            lockscreenFramePendingPath = filePath;
+            lockscreenFrameReadyFor = "";
+            return;
+        }
+
+        startLockscreenFrameGeneration(filePath);
+    }
+
+    function startLockscreenFrameGeneration(filePath) {
+        if (!filePath) {
+            return;
+        }
+
+        console.log("Generating lockscreen background for:", filePath);
+        lockscreenFrameReadyFor = "";
+        lockscreenFrameGeneratingPath = filePath;
 
         // QUICKSHELL-GIT: var dataPath = Quickshell.cacheDir;
         var dataPath = Quickshell.env("HOME") + "/.cache/ambxst";
+        var width = Math.max(1, Math.round(wallpaper.width || 1920));
+        var height = Math.max(1, Math.round(wallpaper.height || 1080));
 
-        lockscreenWallpaperScript.command = ["ambxst", "lockwall", filePath, dataPath];
-
+        lockscreenWallpaperScript.command = [
+            "ambxst", "lockwall", filePath, dataPath, String(width), String(height)
+        ];
         lockscreenWallpaperScript.running = true;
     }
 
@@ -737,10 +764,23 @@ PanelWindow {
         }
 
         onExited: function (exitCode) {
+            var finishedPath = lockscreenFrameGeneratingPath;
+            lockscreenFrameGeneratingPath = "";
+
             if (exitCode === 0) {
-                console.log("✅ Lockscreen wallpaper ready");
+                console.log("✅ Lockscreen background ready:", finishedPath);
+                lockscreenFrameReadyFor = finishedPath;
             } else {
-                console.warn("⚠️ Lockscreen wallpaper generation failed with code:", exitCode);
+                console.warn("⚠️ Lockscreen background generation failed with code:", exitCode);
+                lockscreenFrameReadyFor = "";
+            }
+
+            var nextPath = lockscreenFramePendingPath;
+            lockscreenFramePendingPath = "";
+            if (nextPath && nextPath !== finishedPath) {
+                Qt.callLater(function () {
+                    startLockscreenFrameGeneration(nextPath);
+                });
             }
         }
     }
