@@ -45,6 +45,7 @@ PanelWindow {
     // The cache is only considered ready for the exact wallpaper that generated it.
     property string lockscreenFrameReadyFor: ""
     property string lockscreenFrameGeneratingPath: ""
+    property string lockscreenFrameGeneratingKey: ""
     property string lockscreenFramePendingPath: ""
 
     // Blurs the wallpaper while niri's native overview is open. The overview
@@ -232,6 +233,12 @@ PanelWindow {
         return filePath;
     }
 
+    function getLockscreenFrameKey(filePath) {
+        var width = Math.max(1, Math.round(wallpaper.width || 1920));
+        var height = Math.max(1, Math.round(wallpaper.height || 1080));
+        return filePath + "|" + width + "x" + height;
+    }
+
     function generateLockscreenFrame(filePath) {
         if (!filePath) {
             console.warn("generateLockscreenFrame: empty filePath");
@@ -257,6 +264,7 @@ PanelWindow {
         console.log("Generating lockscreen background for:", filePath);
         lockscreenFrameReadyFor = "";
         lockscreenFrameGeneratingPath = filePath;
+        lockscreenFrameGeneratingKey = getLockscreenFrameKey(filePath);
 
         // QUICKSHELL-GIT: var dataPath = Quickshell.cacheDir;
         var dataPath = Quickshell.env("HOME") + "/.cache/ambxst";
@@ -765,11 +773,13 @@ PanelWindow {
 
         onExited: function (exitCode) {
             var finishedPath = lockscreenFrameGeneratingPath;
+            var finishedKey = lockscreenFrameGeneratingKey;
             lockscreenFrameGeneratingPath = "";
+            lockscreenFrameGeneratingKey = "";
 
             if (exitCode === 0) {
                 console.log("✅ Lockscreen background ready:", finishedPath);
-                lockscreenFrameReadyFor = finishedPath;
+                lockscreenFrameReadyFor = finishedKey;
             } else {
                 console.warn("⚠️ Lockscreen background generation failed with code:", exitCode);
                 lockscreenFrameReadyFor = "";
