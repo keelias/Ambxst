@@ -227,7 +227,7 @@ FocusScope {
                 // Verificar si coincide con algún filtro activo
                 for (var i = 0; i < activeFilters.length; i++) {
                     var filter = activeFilters[i];
-                    if (filter === fileType) {
+                    if (filter === fileType || (filter === "image" && fileType === "svg")) {
                         return true;
                     }
                     if (filter.startsWith("subfolder_") && subfolder === filter.replace("subfolder_", "")) {
