@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -48,14 +49,14 @@ func runInput(cmd *exec.Cmd, input []byte) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
-// --- lockwall: extract first frame from video/GIF wallpaper ---
+// --- lockwall: prepare a fast, blurred lockscreen background ---
 
 func runLockWall(args []string) int {
 	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "Usage: ambxst lockwall <wallpaper_path> <data_path>")
+		fmt.Fprintln(os.Stderr, "Usage: ambxst lockwall <wallpaper_path> <data_path> [width height]")
 		return 1
 	}
-	wallpaperPath, dataPath := expandTilde(args[0]), args[1]
+	wallpaperPath, dataPath := expandTilde(args[0]), expandTilde(args[1])
 	wallpaper, err := filepath.Abs(wallpaperPath)
 	if err != nil {
 		return 1
@@ -64,25 +65,76 @@ func runLockWall(args []string) int {
 		fmt.Fprintf(os.Stderr, "ERROR: Wallpaper not found: %s\n", wallpaper)
 		return 1
 	}
+
 	ext := strings.ToLower(filepath.Ext(wallpaper))
-	if !mediaVideoExts[ext] && !strings.EqualFold(ext, ".gif") {
+	isVideo := mediaVideoExts[ext]
+	isStaticImage := mediaImageExts[ext] && !isVideo
+	if !isVideo && !isStaticImage {
 		return 0
 	}
 
-	lockscreenDir := filepath.Join(dataPath, "lockscreen")
-	os.MkdirAll(lockscreenDir, 0o755)
-	entries, _ := os.ReadDir(lockscreenDir)
-	for _, e := range entries {
-		if !e.IsDir() {
-			os.Remove(filepath.Join(lockscreenDir, e.Name()))
+	// Static images are rendered at the target display dimensions and blurred
+	// before being saved. Animated wallpapers keep their existing first-frame
+	// extraction behavior so the live lockscreen video path is unaffected.
+	width, height := 1920, 1080
+	if len(args) > 2 {
+		if value, parseErr := strconv.Atoi(args[2]); parseErr == nil && value > 0 && value <= 16384 {
+			width = value
+		}
+	}
+	if len(args) > 3 {
+		if value, parseErr := strconv.Atoi(args[3]); parseErr == nil && value > 0 && value <= 16384 {
+			height = value
 		}
 	}
 
-	output := filepath.Join(lockscreenDir, filepath.Base(wallpaper)+".jpg")
-	out, err := exec.Command("ffmpeg", "-y", "-i", wallpaper,
-		"-vframes", "1", "-q:v", "2", "-f", "image2", output).CombinedOutput()
+	lockscreenDir := filepath.Join(dataPath, "lockscreen")
+	if err := os.MkdirAll(lockscreenDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create lockscreen cache: %v\n", err)
+		return 1
+	}
+
+	baseName := filepath.Base(wallpaper)
+	outputName := baseName + ".jpg"
+	if isStaticImage {
+		outputName = fmt.Sprintf("%s.%dx%d.jpg", baseName, width, height)
+	}
+	output := filepath.Join(lockscreenDir, outputName)
+	tempOutput := filepath.Join(lockscreenDir, strings.TrimSuffix(outputName, ".jpg")+".tmp.jpg")
+	defer os.Remove(tempOutput)
+
+	input := wallpaper
+	if ext == ".svg" {
+		rasterized, rasterErr := rasterizeSVG(wallpaper, max(width, height)/4)
+		if rasterErr != nil {
+			fmt.Fprintf(os.Stderr, "Failed to rasterize SVG lockscreen wallpaper: %v\n", rasterErr)
+			return 1
+		}
+		defer os.Remove(rasterized)
+		input = rasterized
+	}
+
+	var cmd *exec.Cmd
+	if isStaticImage {
+		// A little over 3% of the shorter edge approximates the lockscreen's
+		// strong blur while avoiding a GPU blur pass over a freshly rendered SVG.
+		sigma := max(8, min(width, height)/34)
+		filter := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,gblur=sigma=%d:steps=2",
+			width, height, width, height, sigma)
+		cmd = exec.Command("ffmpeg", "-y", "-i", input, "-vf", filter,
+			"-frames:v", "1", "-q:v", "3", "-f", "image2", tempOutput)
+	} else {
+		cmd = exec.Command("ffmpeg", "-y", "-i", input,
+			"-vframes", "1", "-q:v", "2", "-f", "image2", tempOutput)
+	}
+
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to extract frame: %s\n%s\n", err, out)
+		fmt.Fprintf(os.Stderr, "Failed to prepare lockscreen background: %s\n%s\n", err, out)
+		return 1
+	}
+	if err := os.Rename(tempOutput, output); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to finalize lockscreen background: %v\n", err)
 		return 1
 	}
 	return 0
