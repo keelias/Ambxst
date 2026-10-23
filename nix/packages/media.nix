@@ -8,6 +8,9 @@ with pkgs; [
   x264
   playerctl
 
+  # SVG rasterization for wallpaper thumbnails and color extraction
+  librsvg
+
   # GStreamer (QtMultimedia video backend for wallpapers)
   gst_all_1.gstreamer
   gst_all_1.gst-plugins-base
